@@ -284,7 +284,7 @@ save_seen(seen)
 send_email(new_jobs)
 
 
-save_seen(seen_jobs)
+save_seen(seen)
 
 send_email(new_jobs)
 
