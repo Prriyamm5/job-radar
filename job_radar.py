@@ -40,31 +40,13 @@ CANADA_LOCATIONS = [
 # -----------------------------
 # ATS COMPANY LISTS
 # -----------------------------
-GREENHOUSE_COMPANIES = [
-    "shopify",
-    "wealthsimple",
-    "clio",
-    "lightspeedhq",
-    "stackadapt"
-]
-
-LEVER_COMPANIES = [
-    "clearco",
-    "figment",
-    "koho",
-    "applyboard"
-]
-
-SMARTRECRUITERS_COMPANIES = [
-    "cognizant"
-]
-
-WORKABLE_COMPANIES = [
-    "pointclickcare"
-]
+GREENHOUSE_COMPANIES = ["shopify","wealthsimple","clio","lightspeedhq","stackadapt"]
+LEVER_COMPANIES = ["clearco","figment","koho","applyboard"]
+SMARTRECRUITERS_COMPANIES = ["cognizant"]
+WORKABLE_COMPANIES = ["pointclickcare"]
 
 # -----------------------------
-# WORKDAY COMPANIES (API)
+# WORKDAY API COMPANIES
 # -----------------------------
 WORKDAY_API_COMPANIES = {
     "rbc":"https://jobs.rbc.com/wday/cxs/rbc/jobs/jobs",
@@ -80,15 +62,17 @@ WORKDAY_API_COMPANIES = {
 # -----------------------------
 # SEEN JOB STORAGE
 # -----------------------------
+SEEN_FILE = "seen_jobs.json"
+
 def load_seen():
     try:
-        with open("seen_jobs.json","r") as f:
+        with open(SEEN_FILE,"r") as f:
             return set(json.load(f))
     except:
         return set()
 
 def save_seen(seen):
-    with open("seen_jobs.json","w") as f:
+    with open(SEEN_FILE,"w") as f:
         json.dump(list(seen),f)
 
 # -----------------------------
@@ -104,104 +88,82 @@ def is_target_job(title, location):
     return True
 
 # -----------------------------
-# GREENHOUSE SCANNER
+# SCANNERS
 # -----------------------------
 def scan_greenhouse():
-    jobs = []
+    jobs=[]
     for company in GREENHOUSE_COMPANIES:
-        url = f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs"
         try:
-            r = requests.get(url, headers=HEADERS, timeout=10)
-            data = r.json()
-            for job in data.get("jobs", []):
-                title = job["title"]
-                location = job["location"]["name"]
-                if is_target_job(title, location):
-                    link = job["absolute_url"]
-                    jobs.append(f"{company} — {title} ({location}) — {link}")
+            r=requests.get(f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs",headers=HEADERS,timeout=10)
+            data=r.json()
+            for job in data.get("jobs",[]):
+                title=job["title"]
+                location=job["location"]["name"]
+                if is_target_job(title,location):
+                    jobs.append(f"{company} — {title} ({location}) — {job['absolute_url']}")
         except:
             pass
     return jobs
 
-# -----------------------------
-# LEVER SCANNER
-# -----------------------------
 def scan_lever():
-    jobs = []
+    jobs=[]
     for company in LEVER_COMPANIES:
-        url = f"https://api.lever.co/v0/postings/{company}?mode=json"
         try:
-            r = requests.get(url, headers=HEADERS, timeout=10)
-            data = r.json()
+            r=requests.get(f"https://api.lever.co/v0/postings/{company}?mode=json",headers=HEADERS,timeout=10)
+            data=r.json()
             for job in data:
-                title = job["text"]
-                location = job["categories"]["location"]
-                if is_target_job(title, location):
-                    link = job["hostedUrl"]
-                    jobs.append(f"{company} — {title} ({location}) — {link}")
+                title=job["text"]
+                location=job["categories"]["location"]
+                if is_target_job(title,location):
+                    jobs.append(f"{company} — {title} ({location}) — {job['hostedUrl']}")
         except:
             pass
     return jobs
 
-# -----------------------------
-# WORKABLE SCANNER
-# -----------------------------
 def scan_workable():
-    jobs = []
+    jobs=[]
     for company in WORKABLE_COMPANIES:
-        url = f"https://apply.workable.com/api/v3/accounts/{company}/jobs"
         try:
-            r = requests.get(url, headers=HEADERS, timeout=10)
-            data = r.json()
-            for job in data.get("results", []):
-                title = job["title"]
-                location = job["location"]["location_str"]
-                if is_target_job(title, location):
-                    link = job["shortcode"]
+            r=requests.get(f"https://apply.workable.com/api/v3/accounts/{company}/jobs",headers=HEADERS,timeout=10)
+            data=r.json()
+            for job in data.get("results",[]):
+                title=job["title"]
+                location=job["location"]["location_str"]
+                if is_target_job(title,location):
+                    link=job["shortcode"]
                     jobs.append(f"{company} — {title} ({location}) — https://apply.workable.com/{company}/j/{link}")
         except:
             pass
     return jobs
 
-# -----------------------------
-# SMARTRECRUITERS SCANNER
-# -----------------------------
 def scan_smartrecruiters():
-    jobs = []
+    jobs=[]
     for company in SMARTRECRUITERS_COMPANIES:
-        url = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
         try:
-            r = requests.get(url, headers=HEADERS, timeout=10)
-            data = r.json()
-            for job in data.get("content", []):
-                title = job["name"]
-                location = job["location"]["city"]
-                if is_target_job(title, location):
-                    link = job["ref"]
+            r=requests.get(f"https://api.smartrecruiters.com/v1/companies/{company}/postings",headers=HEADERS,timeout=10)
+            data=r.json()
+            for job in data.get("content",[]):
+                title=job["name"]
+                location=job["location"]["city"]
+                if is_target_job(title,location):
+                    link=job["ref"]
                     jobs.append(f"{company} — {title} ({location}) — https://careers.smartrecruiters.com/{company}/{link}")
         except:
             pass
     return jobs
 
-# -----------------------------
-# WORKDAY API SCANNER
-# -----------------------------
 def scan_workday_api():
-    jobs = []
-    payload = {
-        "limit": 50,
-        "offset": 0,
-        "searchText": ""
-    }
-    for company, url in WORKDAY_API_COMPANIES.items():
+    jobs=[]
+    payload={"limit":50,"offset":0,"searchText":""}
+    for company,url in WORKDAY_API_COMPANIES.items():
         try:
-            r = requests.post(url, json=payload, headers=HEADERS, timeout=10)
-            data = r.json()
-            for job in data.get("jobPostings", []):
-                title = job["title"]
-                location = job.get("locationsText","")
-                if is_target_job(title, location):
-                    link = "https://" + url.split("/")[2] + job["externalPath"]
+            r=requests.post(url,json=payload,headers=HEADERS,timeout=10)
+            data=r.json()
+            for job in data.get("jobPostings",[]):
+                title=job["title"]
+                location=job.get("locationsText","")
+                if is_target_job(title,location):
+                    link="https://"+url.split("/")[2]+job["externalPath"]
                     jobs.append(f"{company} — {title} ({location}) — {link}")
         except:
             pass
@@ -213,13 +175,13 @@ def scan_workday_api():
 def send_email(job_list):
     if not job_list:
         return
-    body = "\n\n".join(job_list)
-    msg = MIMEText(body)
-    msg["Subject"] = "New Product Jobs in Canada"
-    msg["From"] = EMAIL
-    msg["To"] = EMAIL
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL, PASSWORD)
+    body="\n\n".join(job_list)
+    msg=MIMEText(body)
+    msg["Subject"]="New Product Jobs in Canada"
+    msg["From"]=EMAIL
+    msg["To"]=EMAIL
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as smtp:
+        smtp.login(EMAIL,PASSWORD)
         smtp.send_message(msg)
 
 # -----------------------------
@@ -227,15 +189,14 @@ def send_email(job_list):
 # -----------------------------
 seen = load_seen()
 
-jobs = []
+jobs=[]
 jobs += scan_greenhouse()
 jobs += scan_lever()
 jobs += scan_workable()
 jobs += scan_smartrecruiters()
 jobs += scan_workday_api()
 
-new_jobs = []
-
+new_jobs=[]
 for job in jobs:
     if job not in seen:
         new_jobs.append(job)
