@@ -2,12 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 import smtplib
 from email.mime.text import MIMEText
-
 import os
+import json
 
 EMAIL = os.environ.get("EMAIL")
 PASSWORD = os.environ.get("PASSWORD")
 
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 KEYWORDS = [
 "product owner",
@@ -17,29 +18,13 @@ KEYWORDS = [
 "agile product owner"
 ]
 
-HEADERS = {"User-Agent": "Mozilla/5.0"}
-
-# -----------------------------
-# JOB BOARDS
-# -----------------------------
-
-JOB_BOARD_URLS = [
-
-"https://www.indeed.com/jobs?q=product+owner&l=Canada",
-"https://www.indeed.com/jobs?q=product+manager&l=Canada",
-
-"https://www.linkedin.com/jobs/search/?keywords=product%20owner&location=Canada",
-"https://www.linkedin.com/jobs/search/?keywords=product%20manager&location=Canada"
-
-]
-
-# -----------------------------
-# COMPANY CAREER PAGES
-# -----------------------------
+# --------------------------------
+# TARGET COMPANY CAREER PAGES
+# --------------------------------
 
 COMPANY_CAREERS = [
 
-# Banks & Financial
+# Banks & Financial Services
 "https://jobs.rbc.com",
 "https://jobs.td.com",
 "https://jobs.scotiabank.com",
@@ -55,23 +40,18 @@ COMPANY_CAREERS = [
 "https://careers.intactfc.com",
 "https://careers.greatwestlife.com",
 
-# Telecom
+# Telecom & Media
 "https://jobs.rogers.com",
 "https://jobs.bell.ca",
 "https://careers.telus.com",
 
-# Canadian Tech
+# Canadian Tech / SaaS
 "https://www.shopify.com/careers",
 "https://www.lightspeedhq.com/careers",
 "https://careers.opentext.com",
 "https://jobs.lever.co/clio",
 
-# SaaS
-"https://jobs.lever.co/clearco",
-"https://jobs.lever.co/stackadapt",
-"https://jobs.lever.co/wealthsimple",
-
-# Consulting
+# Consulting / IT Services
 "https://careers.accenture.com",
 "https://www2.deloitte.com/careers",
 "https://home.kpmg/ca/en/home/careers.html",
@@ -81,29 +61,41 @@ COMPANY_CAREERS = [
 # Retail / Ecommerce
 "https://careers.loblaw.ca",
 "https://corp.canadiantire.ca/careers",
-"https://www.chapters.indigo.ca/en-ca/careers",
-
-# Startups
-"https://jobs.lever.co/figment",
-"https://jobs.lever.co/koho",
-"https://jobs.lever.co/wealthsimple",
+"https://www.chapters.indigo.ca/en-ca/careers"
 
 ]
 
-# -----------------------------
-# JOB SCRAPER
-# -----------------------------
+# --------------------------------
+# LOAD SEEN JOBS
+# --------------------------------
 
-def scan_pages(urls):
+def load_seen():
+
+    try:
+        with open("seen_jobs.json","r") as f:
+            return set(json.load(f))
+    except:
+        return set()
+
+def save_seen(seen):
+
+    with open("seen_jobs.json","w") as f:
+        json.dump(list(seen),f)
+
+# --------------------------------
+# SCAN COMPANY PAGES
+# --------------------------------
+
+def scan_pages():
 
     jobs = []
 
-    for url in urls:
+    for url in COMPANY_CAREERS:
 
         try:
 
             r = requests.get(url, headers=HEADERS, timeout=10)
-            soup = BeautifulSoup(r.text, "html.parser")
+            soup = BeautifulSoup(r.text,"html.parser")
 
             for a in soup.find_all("a"):
 
@@ -125,9 +117,9 @@ def scan_pages(urls):
 
     return jobs
 
-# -----------------------------
-# EMAIL SENDER
-# -----------------------------
+# --------------------------------
+# SEND EMAIL
+# --------------------------------
 
 def send_email(job_list):
 
@@ -137,22 +129,33 @@ def send_email(job_list):
     body = "\n\n".join(job_list)
 
     msg = MIMEText(body)
-    msg["Subject"] = "New Product Owner / PM Jobs"
+    msg["Subject"] = "New Product Owner / PM Jobs Found"
     msg["From"] = EMAIL
     msg["To"] = EMAIL
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as smtp:
 
-        smtp.login(EMAIL, PASSWORD)
+        smtp.login(EMAIL,PASSWORD)
         smtp.send_message(msg)
 
-# -----------------------------
-# RUN SCANNER
-# -----------------------------
+# --------------------------------
+# MAIN
+# --------------------------------
 
-jobs1 = scan_pages(JOB_BOARD_URLS)
-jobs2 = scan_pages(COMPANY_CAREERS)
+seen_jobs = load_seen()
 
-all_jobs = list(set(jobs1 + jobs2))
+found_jobs = scan_pages()
 
-send_email(all_jobs)
+new_jobs = []
+
+for job in found_jobs:
+
+    if job not in seen_jobs:
+
+        new_jobs.append(job)
+        seen_jobs.add(job)
+
+save_seen(seen_jobs)
+
+send_email(new_jobs)
+
