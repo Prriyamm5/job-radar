@@ -18,7 +18,10 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install requests beautifulsoup4
 
       - name: Run job radar
+        env:
+          EMAIL: ${{ secrets.EMAIL }}
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: python job_radar.py
