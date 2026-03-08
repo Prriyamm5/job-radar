@@ -1,73 +1,75 @@
 import requests
-from bs4 import BeautifulSoup
 import smtplib
-from email.mime.text import MIMEText
 import os
 import json
+from email.mime.text import MIMEText
 
 EMAIL = os.environ.get("EMAIL")
 PASSWORD = os.environ.get("PASSWORD")
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+# --------------------------------------------------
+# JOB TITLES YOU WANT TO TRACK
+# --------------------------------------------------
+
 KEYWORDS = [
 "product owner",
-"product manager",
+"lead product owner",
+"technical product owner",
 "digital product manager",
-"technical product manager",
-"agile product owner"
+"associate product manager",
+"platform product manager",
+"product manager",
+"director of product",
+"head of product",
+"vp product"
 ]
 
-# --------------------------------
-# TARGET COMPANY CAREER PAGES
-# --------------------------------
+# --------------------------------------------------
+# CANADA LOCATION FILTER
+# --------------------------------------------------
 
-COMPANY_CAREERS = [
-
-# Banks & Financial Services
-"https://jobs.rbc.com",
-"https://jobs.td.com",
-"https://jobs.scotiabank.com",
-"https://jobs.bmo.com",
-"https://careers.cibc.com",
-"https://www.eqbank.ca/careers",
-"https://careers.questrade.com",
-"https://careers.wealthsimple.com",
-
-# Insurance
-"https://careers.manulife.com",
-"https://sunlife.wd3.myworkdayjobs.com",
-"https://careers.intactfc.com",
-"https://careers.greatwestlife.com",
-
-# Telecom & Media
-"https://jobs.rogers.com",
-"https://jobs.bell.ca",
-"https://careers.telus.com",
-
-# Canadian Tech / SaaS
-"https://www.shopify.com/careers",
-"https://www.lightspeedhq.com/careers",
-"https://careers.opentext.com",
-"https://jobs.lever.co/clio",
-
-# Consulting / IT Services
-"https://careers.accenture.com",
-"https://www2.deloitte.com/careers",
-"https://home.kpmg/ca/en/home/careers.html",
-"https://www.capgemini.com/careers",
-"https://careers.cognizant.com",
-
-# Retail / Ecommerce
-"https://careers.loblaw.ca",
-"https://corp.canadiantire.ca/careers",
-"https://www.chapters.indigo.ca/en-ca/careers"
-
+CANADA_LOCATIONS = [
+"canada",
+"toronto",
+"montreal",
+"vancouver",
+"calgary",
+"ottawa",
+"remote canada"
 ]
 
-# --------------------------------
-# LOAD SEEN JOBS
-# --------------------------------
+# --------------------------------------------------
+# ATS COMPANY LISTS
+# --------------------------------------------------
+
+GREENHOUSE_COMPANIES = [
+"shopify",
+"wealthsimple",
+"clio",
+"lightspeedhq",
+"stackadapt"
+]
+
+LEVER_COMPANIES = [
+"clearco",
+"figment",
+"koho",
+"applyboard"
+]
+
+SMARTRECRUITERS_COMPANIES = [
+"cognizant"
+]
+
+WORKABLE_COMPANIES = [
+"pointclickcare"
+]
+
+# --------------------------------------------------
+# SEEN JOB STORAGE
+# --------------------------------------------------
 
 def load_seen():
 
@@ -82,44 +84,162 @@ def save_seen(seen):
     with open("seen_jobs.json","w") as f:
         json.dump(list(seen),f)
 
-# --------------------------------
-# SCAN COMPANY PAGES
-# --------------------------------
+# --------------------------------------------------
+# FILTER FUNCTION
+# --------------------------------------------------
 
-def scan_pages():
+def is_target_job(title, location):
+
+    title = title.lower()
+    location = location.lower()
+
+    if not any(k in title for k in KEYWORDS):
+        return False
+
+    if not any(loc in location for loc in CANADA_LOCATIONS):
+        return False
+
+    return True
+
+# --------------------------------------------------
+# GREENHOUSE
+# --------------------------------------------------
+
+def scan_greenhouse():
 
     jobs = []
 
-    for url in COMPANY_CAREERS:
+    for company in GREENHOUSE_COMPANIES:
+
+        url = f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs"
 
         try:
 
-            r = requests.get(url, headers=HEADERS, timeout=10)
-            soup = BeautifulSoup(r.text,"html.parser")
+            r = requests.get(url)
+            data = r.json()
 
-            for a in soup.find_all("a"):
+            for job in data["jobs"]:
 
-                title = a.text.strip()
+                title = job["title"]
+                location = job["location"]["name"]
 
-                if any(k in title.lower() for k in KEYWORDS):
+                if is_target_job(title, location):
 
-                    link = a.get("href")
+                    link = job["absolute_url"]
 
-                    if link:
-
-                        if link.startswith("/"):
-                            link = url + link
-
-                        jobs.append(f"{title} — {link}")
+                    jobs.append(f"{company} — {title} ({location}) — {link}")
 
         except:
             pass
 
     return jobs
 
-# --------------------------------
-# SEND EMAIL
-# --------------------------------
+# --------------------------------------------------
+# LEVER
+# --------------------------------------------------
+
+def scan_lever():
+
+    jobs = []
+
+    for company in LEVER_COMPANIES:
+
+        url = f"https://api.lever.co/v0/postings/{company}?mode=json"
+
+        try:
+
+            r = requests.get(url)
+            data = r.json()
+
+            for job in data:
+
+                title = job["text"]
+                location = job["categories"]["location"]
+
+                if is_target_job(title, location):
+
+                    link = job["hostedUrl"]
+
+                    jobs.append(f"{company} — {title} ({location}) — {link}")
+
+        except:
+            pass
+
+    return jobs
+
+# --------------------------------------------------
+# WORKABLE
+# --------------------------------------------------
+
+def scan_workable():
+
+    jobs = []
+
+    for company in WORKABLE_COMPANIES:
+
+        url = f"https://apply.workable.com/api/v3/accounts/{company}/jobs"
+
+        try:
+
+            r = requests.get(url)
+            data = r.json()
+
+            for job in data["results"]:
+
+                title = job["title"]
+                location = job["location"]["location_str"]
+
+                if is_target_job(title, location):
+
+                    link = job["shortcode"]
+
+                    jobs.append(
+                        f"{company} — {title} ({location}) — https://apply.workable.com/{company}/j/{link}"
+                    )
+
+        except:
+            pass
+
+    return jobs
+
+# --------------------------------------------------
+# SMARTRECRUITERS
+# --------------------------------------------------
+
+def scan_smartrecruiters():
+
+    jobs = []
+
+    for company in SMARTRECRUITERS_COMPANIES:
+
+        url = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
+
+        try:
+
+            r = requests.get(url)
+            data = r.json()
+
+            for job in data["content"]:
+
+                title = job["name"]
+                location = job["location"]["city"]
+
+                if is_target_job(title, location):
+
+                    link = job["ref"]
+
+                    jobs.append(
+                        f"{company} — {title} ({location}) — https://careers.smartrecruiters.com/{company}/{link}"
+                    )
+
+        except:
+            pass
+
+    return jobs
+
+# --------------------------------------------------
+# EMAIL
+# --------------------------------------------------
 
 def send_email(job_list):
 
@@ -129,7 +249,7 @@ def send_email(job_list):
     body = "\n\n".join(job_list)
 
     msg = MIMEText(body)
-    msg["Subject"] = "New Product Owner / PM Jobs Found"
+    msg["Subject"] = "New Product Jobs in Canada"
     msg["From"] = EMAIL
     msg["To"] = EMAIL
 
@@ -138,22 +258,31 @@ def send_email(job_list):
         smtp.login(EMAIL,PASSWORD)
         smtp.send_message(msg)
 
-# --------------------------------
-# MAIN
-# --------------------------------
+# --------------------------------------------------
+# RUN RADAR
+# --------------------------------------------------
 
-seen_jobs = load_seen()
+seen = load_seen()
 
-found_jobs = scan_pages()
+jobs = []
+jobs += scan_greenhouse()
+jobs += scan_lever()
+jobs += scan_workable()
+jobs += scan_smartrecruiters()
 
 new_jobs = []
 
-for job in found_jobs:
+for job in jobs:
 
-    if job not in seen_jobs:
+    if job not in seen:
 
         new_jobs.append(job)
-        seen_jobs.add(job)
+        seen.add(job)
+
+save_seen(seen)
+
+send_email(new_jobs)
+
 
 save_seen(seen_jobs)
 
