@@ -3,8 +3,11 @@ from bs4 import BeautifulSoup
 import smtplib
 from email.mime.text import MIMEText
 
-EMAIL = "your_email@gmail.com"
-PASSWORD = "your_app_password"
+import os
+
+EMAIL = os.environ.get("EMAIL")
+PASSWORD = os.environ.get("PASSWORD")
+
 
 KEYWORDS = [
 "product owner",
