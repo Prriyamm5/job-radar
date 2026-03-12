@@ -172,17 +172,17 @@ def scan_workday_api():
 # -----------------------------
 # SEND EMAIL
 # -----------------------------
-#def send_email(job_list):
- #   if not job_list:
-  #      return
-   # body="\n\n".join(job_list)
-    #msg=MIMEText(body)
-  #  msg["Subject"]="New Product Jobs in Canada"
-  #  msg["From"]=EMAIL
-  #  msg["To"]=EMAIL
-  #  with smtplib.SMTP_SSL("smtp.gmail.com",465) as smtp:
-  #      smtp.login(EMAIL,PASSWORD)
-   #     smtp.send_message(msg)
+def send_email(job_list):
+   if not job_list:
+      return
+    body="\n\n".join(job_list)
+    msg=MIMEText(body)
+    msg["Subject"]="New Product Jobs in Canada"
+    msg["From"]=EMAIL
+    msg["To"]=EMAIL
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as smtp:
+        smtp.login(EMAIL,PASSWORD)
+        smtp.send_message(msg)
 
 # -----------------------------
 # RUN RADAR
@@ -203,4 +203,4 @@ for job in jobs:
         seen.add(job)
 
 save_seen(seen)
-send_email(new_jobs)
+#send_email(new_jobs)
